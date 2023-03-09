@@ -178,10 +178,10 @@ impl DataConnector for PlaidConnector {
                                         "localhost"
                                     );
                                     let zk_range_proof_lower = simple_tls_client("localhost", &req, 12342).unwrap_or(json!({
-                                        "result": "fail", "proof": {}
+                                        "result": "fail", "result": {}
                                     }));
-                                    println!("#### debug zk_range_proof_lower: {}", zk_range_proof_lower.to_string());
-                                    let zk_lower = &zk_range_proof_lower["proof"];
+                                    // println!("#### debug zk_range_proof_lower: {}", zk_range_proof_lower.to_string());
+                                    let zk_lower = &zk_range_proof_lower["result"]["proof"];
                                     req = format!(
                                         "GET /zkRangeProof?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&queryType=2&querySlot=2&queryParam=[{}] HTTP/1.1\r\n\
                                         HOST: {}\r\n\
@@ -192,9 +192,9 @@ impl DataConnector for PlaidConnector {
                                         "localhost"
                                     );
                                     let zk_range_proof_upper = simple_tls_client("localhost", &req, 12342).unwrap_or(json!({
-                                        "result": "fail", "proof": {}
+                                        "result": "fail", "result": {}
                                     }));
-                                    let zk_upper = &zk_range_proof_upper["proof"];
+                                    let zk_upper = &zk_range_proof_upper["result"]["proof"];
                                     return json!({
                                         "result": true,
                                         "zk_range_proof": {

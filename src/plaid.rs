@@ -168,22 +168,51 @@ impl DataConnector for PlaidConnector {
                                 let upper = query_param["rangeUpperBound"].as_f64().unwrap();
                                 let lower = query_param["rangeBottomBound"].as_f64().unwrap();
                                 if balance <= upper && balance >= lower {
-                                    let req = format!(
-                                        "GET /signClaim?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&nullifier=mysecretseed HTTP/1.1\r\n\
+                                    let mut req = format!(
+                                        "GET /zkRangeProof?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&queryType=2&querySlot=2&queryParam=[{}] HTTP/1.1\r\n\
                                         HOST: {}\r\n\
                                         User-Agent: curl/7.79.1\r\n\
                                         Accept: */*\r\n\r\n",
                                         balance,
+                                        lower,
                                         "localhost"
                                     );
-                                    let zk_range_proof = simple_tls_client("localhost", &req, 12341).unwrap_or(json!({"result": {}}));
-                                    let zk = &zk_range_proof["result"];
+                                    let mut zk_range_proof = simple_tls_client("localhost", &req, 12342).unwrap_or(json!({
+                                        "result": "fail", "proof": {}
+                                    }));
+                                    let zk_lower = &zk_range_proof["proof"];
+                                    req = format!(
+                                        "GET /zkRangeProof?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&queryType=2&querySlot=2&queryParam=[{}] HTTP/1.1\r\n\
+                                        HOST: {}\r\n\
+                                        User-Agent: curl/7.79.1\r\n\
+                                        Accept: */*\r\n\r\n",
+                                        balance,
+                                        upper,
+                                        "localhost"
+                                    );
+                                    zk_range_proof = simple_tls_client("localhost", &req, 12342).unwrap_or(json!({
+                                        "result": "fail", "proof": {}
+                                    }));
+                                    let zk_upper = &zk_range_proof["proof"];
                                     return json!({
                                         "result": true,
                                         "zk_range_proof": {
-                                            "encryptedClaim": zk["encryptedClaim"].as_str().unwrap_or(""),
-                                            "signature": zk["signature"].as_str().unwrap_or(""),
-                                            "signatureHash": zk["signatureHash"].as_str().unwrap_or("")
+                                            "lower": {
+                                                "query": {
+                                                    "queryType": 2,
+                                                    "querySlot": 2,
+                                                    "queryParam": [lower]
+                                                },
+                                                "zk_proof": zk_lower
+                                            },
+                                            "upper": {
+                                                "query": {
+                                                    "queryType": 2,
+                                                    "querySlot": 2,
+                                                    "queryParam": [upper]
+                                                },
+                                                "zk_proof": zk_upper
+                                            }
                                         }
                                     });
                                 }

@@ -1,8 +1,8 @@
 use std::prelude::v1::*;
 use sibyl_base_data_connector::base::DataConnector;
-use serde_json::json;
+use sibyl_base_data_connector::serde_json::json;
 use std::string::ToString;
-use serde_json::Value;
+use sibyl_base_data_connector::serde_json::Value;
 use std::str;
 use String;
 use std::panic;

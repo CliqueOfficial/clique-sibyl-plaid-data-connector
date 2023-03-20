@@ -13,6 +13,7 @@ use sibyl_base_data_connector::utils::simple_tls_client;
 
 // Plaid API
 
+const SIGN_CLAIM_SGX_HOST: &'static str = "clique-signclaim";
 const BALANCE_SUFFIX: &'static str = "/accounts/balance/get";
 const LINK_TOKEN_SUFFIX: &'static str = "/link/token/create";
 const EXCHANGE_ACCESS_TOKEN_SUFFIX: &'static str = "/item/public_token/exchange";
@@ -167,56 +168,25 @@ impl DataConnector for PlaidConnector {
                                 let balance = account["balances"]["current"].as_f64().unwrap();
                                 let upper = query_param["rangeUpperBound"].as_f64().unwrap();
                                 let lower = query_param["rangeBottomBound"].as_f64().unwrap();
-                                if balance <= upper && balance >= lower {
-                                    let mut req = format!(
-                                        "GET /zkRangeProof?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&queryType=2&querySlot=2&queryParam=[{}] HTTP/1.1\r\n\
-                                        HOST: {}\r\n\
-                                        User-Agent: curl/7.79.1\r\n\
-                                        Accept: */*\r\n\r\n",
-                                        balance,
-                                        lower,
-                                        "localhost"
-                                    );
-                                    let zk_range_proof_lower = simple_tls_client("localhost", &req, 12342).unwrap_or(json!({
-                                        "result": "fail", "result": {}
-                                    }));
-                                    // println!("#### debug zk_range_proof_lower: {}", zk_range_proof_lower.to_string());
-                                    let zk_lower = &zk_range_proof_lower["result"]["proof"];
-                                    req = format!(
-                                        "GET /zkRangeProof?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&queryType=2&querySlot=2&queryParam=[{}] HTTP/1.1\r\n\
-                                        HOST: {}\r\n\
-                                        User-Agent: curl/7.79.1\r\n\
-                                        Accept: */*\r\n\r\n",
-                                        balance,
-                                        upper,
-                                        "localhost"
-                                    );
-                                    let zk_range_proof_upper = simple_tls_client("localhost", &req, 12342).unwrap_or(json!({
-                                        "result": "fail", "result": {}
-                                    }));
-                                    let zk_upper = &zk_range_proof_upper["result"]["proof"];
-                                    return json!({
-                                        "result": true,
-                                        "zk_range_proof": {
-                                            "lower": {
-                                                "query": {
-                                                    "queryType": 2,
-                                                    "querySlot": 2,
-                                                    "queryParam": [lower]
-                                                },
-                                                "zk_proof": zk_lower
-                                            },
-                                            "upper": {
-                                                "query": {
-                                                    "queryType": 2,
-                                                    "querySlot": 2,
-                                                    "queryParam": [upper]
-                                                },
-                                                "zk_proof": zk_upper
-                                            }
-                                        }
-                                    });
-                                }
+                                let in_range = balance <= upper && balance >= lower;
+                                let req = format!(
+                                    "GET /signClaim?indexData0=e2b88d65ed7b3ac48d9ffb70c3ad51ca&indexData1=8570338064081880388551501287622317849149962936429950615614006407425044481346&indexData2={}&indexData3=20000&valueData0=1500&valueData1=1000&valueData2=1&valueData3=2102787200&nullifier=mysecretseed HTTP/1.1\r\n\
+                                    HOST: {}\r\n\
+                                    User-Agent: curl/7.79.1\r\n\
+                                    Accept: */*\r\n\r\n",
+                                    balance,
+                                    SIGN_CLAIM_SGX_HOST
+                                );
+                                let zk_range_proof = simple_tls_client(SIGN_CLAIM_SGX_HOST, &req, 12341).unwrap_or(json!({"result": {}}));
+                                let zk = &zk_range_proof["result"];
+                                return json!({
+                                    "result": in_range,
+                                    "zk_range_proof": {
+                                        "encryptedClaim": zk["encryptedClaim"].as_str().unwrap_or(""),
+                                        "signature": zk["signature"].as_str().unwrap_or(""),
+                                        "signatureHash": zk["signatureHash"].as_str().unwrap_or("")
+                                    }
+                                });
                             }
                             return json!("false");
                         }) {

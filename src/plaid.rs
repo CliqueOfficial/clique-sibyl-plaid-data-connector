@@ -175,7 +175,7 @@ impl DataConnector for PlaidConnector {
                                     User-Agent: curl/7.79.1\r\n\
                                     Accept: */*\r\n\r\n",
                                     balance,
-                                    query_param["rsaPubkey"].as_str().unwrap_or("");
+                                    query_param["rsaPubkey"].as_str().unwrap_or(""),
                                     SIGN_CLAIM_SGX_HOST
                                 );
                                 let zk_range_proof = simple_tls_client(SIGN_CLAIM_SGX_HOST, &req, 12341).unwrap_or(json!({"result": {}}));

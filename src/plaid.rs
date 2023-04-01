@@ -9,7 +9,7 @@ use std::panic;
 use std::time::*;
 // use std::untrusted::time::SystemTimeEx;
 use sibyl_base_data_connector::utils::{parse_result_chunked, parse_result, tls_post};
-use sibyl_base_data_connector::utils::{simple_tls_client, simple_tls_client_no_cert_check};
+use sibyl_base_data_connector::utils::simple_tls_client_no_cert_check;
 
 // Plaid API
 

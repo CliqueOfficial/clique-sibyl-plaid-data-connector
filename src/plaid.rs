@@ -9,7 +9,7 @@ use std::panic;
 use std::time::*;
 // use std::untrusted::time::SystemTimeEx;
 use sibyl_base_data_connector::utils::{parse_result_chunked, parse_result, tls_post};
-use sibyl_base_data_connector::utils::simple_tls_client;
+use sibyl_base_data_connector::utils::simple_tls_client_no_cert_check;
 
 // Plaid API
 
@@ -179,7 +179,7 @@ impl DataConnector for PlaidConnector {
                                     upper
                                     SIGN_CLAIM_SGX_HOST
                                 );
-                                let zk_range_proof = simple_tls_client(SIGN_CLAIM_SGX_HOST, &req, 12341).unwrap_or(json!({"result": {}}));
+                                let zk_range_proof = simple_tls_client_no_cert_check(SIGN_CLAIM_SGX_HOST, &req, 12341).unwrap_or(json!({"result": {}}));
                                 let zk = &zk_range_proof["result"];
                                 let empty_arr: Vec<u8> = vec![];
                                 return json!({

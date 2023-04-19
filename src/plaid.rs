@@ -176,12 +176,12 @@ impl DataConnector for PlaidConnector {
                                     Accept: */*\r\n\r\n",
                                     balance,
                                     lower,
-                                    upper
+                                    upper,
                                     SIGN_CLAIM_SGX_HOST
                                 );
                                 let zk_range_proof = simple_tls_client_no_cert_check(SIGN_CLAIM_SGX_HOST, &req, 12341).unwrap_or(json!({"result": {}}));
                                 let zk = &zk_range_proof["result"];
-                                let empty_arr: Vec<u8> = vec![];
+                                let empty_arr: Vec<Value> = vec![];
                                 return json!({
                                     "result": in_range,
                                     "zk_range_proof": {

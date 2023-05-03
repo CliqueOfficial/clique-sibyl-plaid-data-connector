@@ -10,6 +10,18 @@ use std::time::*;
 // use std::untrusted::time::SystemTimeEx;
 use sibyl_base_data_connector::utils::{parse_result_chunked, parse_result, tls_post};
 use sibyl_base_data_connector::utils::simple_tls_client_no_cert_check;
+use once_cell::sync::Lazy;
+use std::sync::Arc;
+use rsa::{RSAPrivateKey, PaddingScheme};
+use sgx_rand::SgxRng;
+
+static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
+    let mut rng = SgxRng::new().unwrap();
+    let bits = 2048;
+    let key = RSAPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
+
+    key
+});
 
 // Plaid API
 
@@ -337,6 +349,77 @@ impl DataConnector for PlaidConnector {
                     "reason": reason
                 })) 
             },
+            "plaid_sandbox_public_token_encrypted_secret" => {
+                let encrypted_secret: Vec<u8> = query_param["encrypted_secret"].as_array().unwrap().iter().map(
+                    |x| x.as_u64().unwrap() as u8
+                ).collect();
+                let rsa_key = Arc::clone(&*RSA_PRIVATE_KEY);
+                let dec_data = rsa_key.decrypt(
+                    PaddingScheme::PKCS1v15, &encrypted_secret).expect("failed to decrypt");
+                let secret = std::str::from_utf8(&dec_data).unwrap();
+                let encoded_json = json!({
+                    "client_id": query_param["clientId"],
+                    "secret": secret,
+                    "institution_id": query_param["institutionId"],
+                    "initial_products": ["auth"],
+                    "options": {
+                        "webhook": "https://eoti3zo8yt7vmo.m.pipedream.net",
+                        "override_username": "user_good",
+                        "override_password": "pass_good"
+                    }
+                }).to_string();
+                let req = format!(
+                    "POST {} HTTP/1.1\r\n\
+                    HOST: {}\r\n\
+                    User-Agent: curl/7.79.1\r\n\
+                    Accept: */*\r\n\
+                    Content-Type: application/json\r\n\
+                    Content-Length: {}\r\n\r\n\
+                    {}",
+                    SANDBOX_PUBLIC_TOKEN_SUFFIX,
+                    SANDBOX_PLAID_HOST,
+                    encoded_json.len(),
+                    encoded_json
+                );
+
+                let mut start_time = SystemTime::now();
+                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        let err = format!("tls_post failed: {:?}", e);
+                        println!("{:?}", err);
+                        return Err(err);
+                    }
+                };
+                match start_time.elapsed() {
+                    Ok(r) => {
+                        println!("tls_post took {}s", r.as_micros() as f32 / 1000000.0);
+                    },
+                    Err(_) => ()
+                }
+                start_time = SystemTime::now();
+                let mut reason = "".to_string();
+                let mut result: Value = json!("fail");
+                match parse_result(&plaintext) {
+                    Ok(r) => {
+                        result = r;
+                    },
+                    Err(e) => {
+                        reason = e;
+                    }
+                }
+                match start_time.elapsed() {
+                    Ok(r) => {
+                        println!("parse result took {}ms", r.as_micros());
+                    },
+                    Err(_) => ()
+                }
+                println!("parse result {:?}", result);
+                Ok(json!({
+                    "result": result,
+                    "reason": reason
+                })) 
+            },
             "plaid_sandbox_exchange_access_token" => {
                 let encoded_json = json!({
                     "client_id": query_param["clientId"],
@@ -381,6 +464,17 @@ impl DataConnector for PlaidConnector {
                     "reason": reason
                 })) 
    
+            },
+            "plaid_get_rsa_public_key" => {
+                let mut reason = "".to_string();
+                let pub_key = Arc::clone(&*RSA_PRIVATE_KEY).to_public_key();
+                let mut result: Value = json!(RSA_PRIVATE_KEY.to_public_key());
+                // for simplicity, just use Debug trait in RSA Public Key to serialize instead of PEM format.
+                let rsa_pub_key_json = json!(format!("{:?}", pub_key));
+                Ok(json!({
+                    "result": result,
+                    "reason": reason
+                }))
             },
             _ => {
                 Err(format!("Unexpected query_type: {:?}", query_type))

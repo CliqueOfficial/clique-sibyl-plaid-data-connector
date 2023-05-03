@@ -5,5 +5,8 @@
 extern crate sgx_tstd as std;
 extern crate sibyl_base_data_connector;
 // extern crate serde_json;
+extern crate rsa;
+extern crate once_cell;
+extern crate sgx_rand;
 
 pub mod plaid;

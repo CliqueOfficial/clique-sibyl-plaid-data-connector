@@ -20,7 +20,7 @@ static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
     let bits = 2048;
     let key = RSAPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
 
-    key
+    Arc::new(key)
 });
 
 // Plaid API
@@ -468,9 +468,8 @@ impl DataConnector for PlaidConnector {
             "plaid_get_rsa_public_key" => {
                 let mut reason = "".to_string();
                 let pub_key = Arc::clone(&*RSA_PRIVATE_KEY).to_public_key();
-                let mut result: Value = json!(RSA_PRIVATE_KEY.to_public_key());
                 // for simplicity, just use Debug trait in RSA Public Key to serialize instead of PEM format.
-                let rsa_pub_key_json = json!(format!("{:?}", pub_key));
+                let result: Value = json!(format!("{:?}", pub_key));
                 Ok(json!({
                     "result": result,
                     "reason": reason

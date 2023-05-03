@@ -13,10 +13,9 @@ use sibyl_base_data_connector::utils::simple_tls_client_no_cert_check;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use rsa::{RSAPrivateKey, PaddingScheme};
-use sgx_rand::SgxRng;
 
 static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
-    let mut rng = SgxRng::new().unwrap();
+    let mut rng = rand::rngs::OsRng::default();
     let bits = 2048;
     let key = RSAPrivateKey::new(&mut rng, bits).expect("failed to generate a key");
 

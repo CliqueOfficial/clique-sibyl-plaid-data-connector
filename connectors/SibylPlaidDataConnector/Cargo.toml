@@ -1,0 +1,14 @@
+[package]
+name = "sibyl_plaid_data_connector"
+version = "1.0.0"
+authors = ["Wentao XIAO"]
+edition = "2018"
+license = "MIT"
+readme = "README.md"
+include = ["src/**/*.rs", "README.md"]
+
+[dependencies]
+
+[features]
+default = ["mesalock_sgx"]
+mesalock_sgx = []

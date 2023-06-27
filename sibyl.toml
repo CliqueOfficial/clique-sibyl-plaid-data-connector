@@ -1,0 +1,2 @@
+[connectors]
+sibyl_plaid_data_connector = { path = "./connectors/SibylPlaidDataConnector" }

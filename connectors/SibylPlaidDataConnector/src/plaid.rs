@@ -23,7 +23,7 @@ static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
 
 // Plaid API
 
-const SIGN_CLAIM_SGX_HOST: &'static str = "clique-signclaim";
+const SIGN_CLAIM_SGX_HOST: &'static str = "clique-sign-claim";
 const BALANCE_SUFFIX: &'static str = "/accounts/balance/get";
 const LINK_TOKEN_SUFFIX: &'static str = "/link/token/create";
 const EXCHANGE_ACCESS_TOKEN_SUFFIX: &'static str = "/item/public_token/exchange";

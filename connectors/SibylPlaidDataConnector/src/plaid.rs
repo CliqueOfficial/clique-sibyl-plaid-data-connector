@@ -146,15 +146,15 @@ impl DataConnector for PlaidConnector {
                                 ).unwrap_or(json!({"result": {}}));
                                 let zk = &zk_range_proof["result"];
                                 let empty_arr: Vec<Value> = vec![];
-                                return Ok(json!({
+                                return json!({
                                     "result": in_range,
                                     "zk_range_proof": {
                                         "proof": zk["proof"].as_array().unwrap_or(&empty_arr),
                                         "attestation": zk["attestation"].as_str().unwrap_or("")
                                     }
-                                }));
+                                });
                             }
-                            Ok(json!("false"))
+                            json!("false")
                         }) {
                             Ok(r) => Ok(r),
                             Err(e) => {
@@ -204,10 +204,10 @@ impl DataConnector for PlaidConnector {
                                 let upper = query_param["rangeUpperBound"].as_f64().unwrap();
                                 let lower = query_param["rangeBottomBound"].as_f64().unwrap();
                                 if balance <= upper && balance >= lower {
-                                    return Ok(json!("true"));
+                                    return json!("true");
                                 }
                             }
-                            Ok(json!("false"))
+                            json!("false")
                         }) {
                             Ok(r) => Ok(r),
                             Err(e) => {

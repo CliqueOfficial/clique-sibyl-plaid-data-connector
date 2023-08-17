@@ -1,14 +1,12 @@
 use std::prelude::v1::*;
 use sibyl_base_data_connector::base::DataConnector;
+use sibyl_base_data_connector::errors::NetworkError;
 use sibyl_base_data_connector::serde_json::json;
 use std::string::ToString;
 use sibyl_base_data_connector::serde_json::Value;
 use std::str;
-use String;
 use std::panic;
-use std::time::*;
-use sibyl_base_data_connector::utils::{parse_result_chunked, parse_result, tls_post};
-use sibyl_base_data_connector::utils::simple_tls_client_no_cert_check;
+use sibyl_base_data_connector::utils::{parse_result_chunked, tls_post, simple_tls_client, simple_tls_client_no_cert_check};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use rsa::{RSAPrivateKey, PaddingScheme};
@@ -22,7 +20,6 @@ static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
 });
 
 // Plaid API
-
 const SIGN_CLAIM_SGX_HOST: &'static str = "clique-sign-claim";
 const BALANCE_SUFFIX: &'static str = "/accounts/balance/get";
 const LINK_TOKEN_SUFFIX: &'static str = "/link/token/create";
@@ -36,13 +33,13 @@ pub struct PlaidConnector {
 }
 
 impl DataConnector for PlaidConnector {
-    fn query(&self, query_type: &Value, query_param: &Value) -> Result<Value, String> {
+    fn query(&self, query_type: &Value, query_param: &Value) -> Result<Value, NetworkError> {
         let query_type_str = match query_type.as_str() {
             Some(r) => r,
             _ => {
                 let err = format!("query_type to str failed");
                 println!("{:?}", err);
-                return Err(err);
+                return Err(NetworkError::String(err));
             }
         };
         match query_type_str {
@@ -72,30 +69,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        let err = format!("tls_post to str: {:?}", e);
-                        println!("{:?}", err);
-                        return Err(err);
-                    }
-                };
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result(&plaintext) {
-                    Ok(r) => {
-                        result = r;
-                    },
-                    Err(e) => {
-                        reason = e;
-                    }
-                }
-                // println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                }))
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_exchange_access_token" => {
                 let encoded_json = json!({
@@ -116,30 +90,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        let err = format!("tls_post to str failed: {:?}", e);
-                        println!("{:?}", err);
-                        return Err(err);
-                    }
-                };
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result(&plaintext) {
-                    Ok(r) => {
-                        result = r;
-                    },
-                    Err(e) => {
-                        reason = e;
-                    }
-                }
-                // println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                }))
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_bank_balance_range_zkp" => {
                 let encoded_json = json!({
@@ -160,20 +111,17 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                
                 let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
                     Ok(r) => r,
                     Err(e) => {
                         let err = format!("tls_post to str: {:?}", e);
                         println!("{:?}", err);
-                        return Err(err);
+                        return Err(NetworkError::String(err));
                     }
                 };
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result_chunked(&plaintext) {
+                match parse_result_chunked(SANDBOX_PLAID_HOST, &plaintext) {
                     Ok(resp_json) => {
-                        result = match panic::catch_unwind(|| {
+                        match panic::catch_unwind(|| {
                             for account in resp_json["accounts"].as_array().unwrap() {
                                 let balance = account["balances"]["current"].as_u64().unwrap();
                                 let upper = query_param["rangeUpperBound"].as_u64().unwrap();
@@ -189,7 +137,11 @@ impl DataConnector for PlaidConnector {
                                     upper,
                                     SIGN_CLAIM_SGX_HOST
                                 );
-                                let zk_range_proof = simple_tls_client_no_cert_check(SIGN_CLAIM_SGX_HOST, &req, 12341).unwrap_or(json!({"result": {}}));
+                                let zk_range_proof = simple_tls_client_no_cert_check(
+                                    SIGN_CLAIM_SGX_HOST, 
+                                    &req, 
+                                    12341
+                                ).unwrap_or(json!({"result": {}}));
                                 let zk = &zk_range_proof["result"];
                                 let empty_arr: Vec<Value> = vec![];
                                 return json!({
@@ -200,26 +152,20 @@ impl DataConnector for PlaidConnector {
                                     }
                                 });
                             }
-                            return json!("false");
+                            json!("false")
                         }) {
-                            Ok(r) => r,
+                            Ok(r) => Ok(r),
                             Err(e) => {
                                 let err = format!("balance range failed: {:?}", e);
                                 println!("{:?}", err);
-                                return Err(err);
+                                Err(NetworkError::String(err))
                             }
-                        };
-                        
+                        }
                     },
                     Err(e) => {
-                        reason = e;
+                        Err(e)
                     }
                 }
-                // println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                }))
             },
             "plaid_bank_balance_range" => {
                 let encoded_json = json!({
@@ -240,20 +186,17 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                
                 let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
                     Ok(r) => r,
                     Err(e) => {
                         let err = format!("tls_post to str: {:?}", e);
                         println!("{:?}", err);
-                        return Err(err);
+                        return Err(NetworkError::String(err));
                     }
                 };
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result_chunked(&plaintext) {
+                match parse_result_chunked(SANDBOX_PLAID_HOST, &plaintext) {
                     Ok(resp_json) => {
-                        result = match panic::catch_unwind(|| {
+                        match panic::catch_unwind(|| {
                             for account in resp_json["accounts"].as_array().unwrap() {
                                 let balance = account["balances"]["current"].as_f64().unwrap();
                                 let upper = query_param["rangeUpperBound"].as_f64().unwrap();
@@ -262,26 +205,20 @@ impl DataConnector for PlaidConnector {
                                     return json!("true");
                                 }
                             }
-                            return json!("false");
+                            json!("false")
                         }) {
-                            Ok(r) => r,
+                            Ok(r) => Ok(r),
                             Err(e) => {
                                 let err = format!("balance range failed: {:?}", e);
                                 println!("{:?}", err);
-                                return Err(err);
+                                Err(NetworkError::String(err))
                             }
-                        };
-                        
+                        }
                     },
                     Err(e) => {
-                        reason = e;
+                        Err(e)
                     }
                 }
-                // println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                }))
             },
             "plaid_sandbox_public_token" => {
                 let encoded_json = json!({
@@ -308,44 +245,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-
-                let mut start_time = SystemTime::now();
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        let err = format!("tls_post failed: {:?}", e);
-                        println!("{:?}", err);
-                        return Err(err);
-                    }
-                };
-                match start_time.elapsed() {
-                    Ok(r) => {
-                        println!("tls_post took {}s", r.as_micros() as f32 / 1000000.0);
-                    },
-                    Err(_) => ()
-                }
-                start_time = SystemTime::now();
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result(&plaintext) {
-                    Ok(r) => {
-                        result = r;
-                    },
-                    Err(e) => {
-                        reason = e;
-                    }
-                }
-                match start_time.elapsed() {
-                    Ok(r) => {
-                        println!("parse result took {}ms", r.as_micros());
-                    },
-                    Err(_) => ()
-                }
-                println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                })) 
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_sandbox_public_token_encrypted_secret" => {
                 let encrypted_secret: Vec<u8> = query_param["encrypted_secret"].as_array().unwrap().iter().map(
@@ -379,44 +279,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-
-                let mut start_time = SystemTime::now();
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        let err = format!("tls_post failed: {:?}", e);
-                        println!("{:?}", err);
-                        return Err(err);
-                    }
-                };
-                match start_time.elapsed() {
-                    Ok(r) => {
-                        println!("tls_post took {}s", r.as_micros() as f32 / 1000000.0);
-                    },
-                    Err(_) => ()
-                }
-                start_time = SystemTime::now();
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result(&plaintext) {
-                    Ok(r) => {
-                        result = r;
-                    },
-                    Err(e) => {
-                        reason = e;
-                    }
-                }
-                match start_time.elapsed() {
-                    Ok(r) => {
-                        println!("parse result took {}ms", r.as_micros());
-                    },
-                    Err(_) => ()
-                }
-                println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                })) 
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_sandbox_exchange_access_token" => {
                 let encoded_json = json!({
@@ -437,46 +300,15 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        let err = format!("tls_post failed: {:?}", e);
-                        println!("{:?}", err);
-                        return Err(err);
-                    }
-                };
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result(&plaintext) {
-                    Ok(r) => {
-                        result = r;
-                    },
-                    Err(e) => {
-                        reason = e;
-                    }
-                }
-                // println!("parse result {:?}", result);
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                })) 
-   
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_get_rsa_public_key" => {
-                let mut reason = "".to_string();
                 let pub_key = Arc::clone(&*RSA_PRIVATE_KEY).to_public_key();
-                // for simplicity, just use Debug trait in RSA Public Key to serialize instead of PEM format.
-                let result: Value = json!(format!("{:?}", pub_key));
-                Ok(json!({
-                    "result": result,
-                    "reason": reason
-                }))
+                Ok(json!(format!("{:?}", pub_key)))
             },
             _ => {
-                Err(format!("Unexpected query_type: {:?}", query_type))
+                Err(NetworkError::String(format!("Unexpected query_type: {:?}", query_type)))
             }
         }
     }
 }
-

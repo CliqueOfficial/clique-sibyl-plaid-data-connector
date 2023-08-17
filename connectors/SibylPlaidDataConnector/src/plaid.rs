@@ -5,9 +5,7 @@ use sibyl_base_data_connector::serde_json::json;
 use std::string::ToString;
 use sibyl_base_data_connector::serde_json::Value;
 use std::str;
-use String;
 use std::panic;
-use std::time::*;
 use sibyl_base_data_connector::utils::{parse_result_chunked, tls_post, simple_tls_client, simple_tls_client_no_cert_check};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
@@ -305,7 +303,6 @@ impl DataConnector for PlaidConnector {
                 simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_get_rsa_public_key" => {
-                let mut reason = "".to_string();
                 let pub_key = Arc::clone(&*RSA_PRIVATE_KEY).to_public_key();
                 Ok(json!(format!("{:?}", pub_key)))
             },

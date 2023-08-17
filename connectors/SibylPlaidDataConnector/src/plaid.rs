@@ -71,7 +71,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443, "plaid.api")
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_exchange_access_token" => {
                 let encoded_json = json!({
@@ -92,7 +92,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443, "plaid.api")
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_bank_balance_range_zkp" => {
                 let encoded_json = json!({
@@ -121,9 +121,7 @@ impl DataConnector for PlaidConnector {
                         return Err(NetworkError::String(err));
                     }
                 };
-                let mut reason = "".to_string();
-                let mut result: Value = json!("fail");
-                match parse_result_chunked(&plaintext, "plaid.api") {
+                match parse_result_chunked(SANDBOX_PLAID_HOST, &plaintext) {
                     Ok(resp_json) => {
                         match panic::catch_unwind(|| {
                             for account in resp_json["accounts"].as_array().unwrap() {
@@ -144,8 +142,7 @@ impl DataConnector for PlaidConnector {
                                 let zk_range_proof = simple_tls_client_no_cert_check(
                                     SIGN_CLAIM_SGX_HOST, 
                                     &req, 
-                                    12341,
-                                    "plaid.api"
+                                    12341
                                 ).unwrap_or(json!({"result": {}}));
                                 let zk = &zk_range_proof["result"];
                                 let empty_arr: Vec<Value> = vec![];
@@ -199,7 +196,7 @@ impl DataConnector for PlaidConnector {
                         return Err(NetworkError::String(err));
                     }
                 };
-                match parse_result_chunked(&plaintext, "plaid.api") {
+                match parse_result_chunked(SANDBOX_PLAID_HOST, &plaintext) {
                     Ok(resp_json) => {
                         match panic::catch_unwind(|| {
                             for account in resp_json["accounts"].as_array().unwrap() {
@@ -250,7 +247,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443, "plaid.api")
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_sandbox_public_token_encrypted_secret" => {
                 let encrypted_secret: Vec<u8> = query_param["encrypted_secret"].as_array().unwrap().iter().map(
@@ -284,7 +281,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443, "plaid.api")
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_sandbox_exchange_access_token" => {
                 let encoded_json = json!({
@@ -305,7 +302,7 @@ impl DataConnector for PlaidConnector {
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443, "plaid.api")
+                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_get_rsa_public_key" => {
                 let mut reason = "".to_string();

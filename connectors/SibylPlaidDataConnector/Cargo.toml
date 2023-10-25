@@ -1,6 +1,6 @@
 [package]
 name = "sibyl_plaid_data_connector"
-version = "2.1.0"
+version = "2.1.1"
 authors = ["Wentao XIAO"]
 edition = "2018"
 license = "MIT"

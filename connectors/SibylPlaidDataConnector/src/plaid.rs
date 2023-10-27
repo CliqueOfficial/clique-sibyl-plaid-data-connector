@@ -288,7 +288,7 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    SANDBOX_env::EXCHANGE_ACCESS_TOKEN_SUFFIX,
+                    env::EXCHANGE_ACCESS_TOKEN_SUFFIX,
                     env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json

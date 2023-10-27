@@ -11,6 +11,8 @@ use once_cell::sync::Lazy;
 use std::sync::Arc;
 use rsa::{RSAPrivateKey, PaddingScheme};
 
+use crate::env;
+
 static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
     let mut rng = rand::rngs::OsRng::default();
     let bits = 2048;
@@ -18,15 +20,6 @@ static RSA_PRIVATE_KEY: Lazy<Arc<RSAPrivateKey>> = Lazy::new(|| {
 
     Arc::new(key)
 });
-
-// Plaid API
-const SIGN_CLAIM_SGX_HOST: &'static str = "clique-sign-claim";
-const BALANCE_SUFFIX: &'static str = "/accounts/balance/get";
-const LINK_TOKEN_SUFFIX: &'static str = "/link/token/create";
-const EXCHANGE_ACCESS_TOKEN_SUFFIX: &'static str = "/item/public_token/exchange";
-const SANDBOX_PUBLIC_TOKEN_SUFFIX: &'static str = "/sandbox/public_token/create";
-const SANDBOX_EXCHANGE_ACCESS_TOKEN_SUFFIX: &'static str = "/item/public_token/exchange";
-const SANDBOX_PLAID_HOST: &'static str = "sandbox.plaid.com";
 
 pub struct PlaidConnector {
 
@@ -64,12 +57,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    LINK_TOKEN_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    env::LINK_TOKEN_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
+                simple_tls_client(env::SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_exchange_access_token" => {
                 let encoded_json = json!({
@@ -85,12 +78,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    EXCHANGE_ACCESS_TOKEN_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    env::EXCHANGE_ACCESS_TOKEN_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
+                simple_tls_client(env::SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_bank_balance_range_zkp" => {
                 let encoded_json = json!({
@@ -106,12 +99,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    BALANCE_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    env::BALANCE_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
+                let plaintext = match tls_post(env::SANDBOX_PLAID_HOST, &req, 443) {
                     Ok(r) => r,
                     Err(e) => {
                         let err = format!("tls_post to str: {:?}", e);
@@ -119,7 +112,7 @@ impl DataConnector for PlaidConnector {
                         return Err(NetworkError::String(err));
                     }
                 };
-                match parse_result_chunked(SANDBOX_PLAID_HOST, &plaintext) {
+                match parse_result_chunked(env::SANDBOX_PLAID_HOST, &plaintext) {
                     Ok(resp_json) => {
                         match panic::catch_unwind(|| {
                             for account in resp_json["accounts"].as_array().unwrap() {
@@ -135,10 +128,10 @@ impl DataConnector for PlaidConnector {
                                     balance,
                                     lower,
                                     upper,
-                                    SIGN_CLAIM_SGX_HOST
+                                    env::SIGN_CLAIM_SGX_HOST
                                 );
                                 let zk_range_proof = simple_tls_client_no_cert_check(
-                                    SIGN_CLAIM_SGX_HOST, 
+                                    env::SIGN_CLAIM_SGX_HOST, 
                                     &req, 
                                     12341
                                 ).unwrap_or(json!({"result": {}}));
@@ -181,12 +174,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    BALANCE_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    env::BALANCE_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                let plaintext = match tls_post(SANDBOX_PLAID_HOST, &req, 443) {
+                let plaintext = match tls_post(env::SANDBOX_PLAID_HOST, &req, 443) {
                     Ok(r) => r,
                     Err(e) => {
                         let err = format!("tls_post to str: {:?}", e);
@@ -194,7 +187,7 @@ impl DataConnector for PlaidConnector {
                         return Err(NetworkError::String(err));
                     }
                 };
-                match parse_result_chunked(SANDBOX_PLAID_HOST, &plaintext) {
+                match parse_result_chunked(env::SANDBOX_PLAID_HOST, &plaintext) {
                     Ok(resp_json) => {
                         match panic::catch_unwind(|| {
                             for account in resp_json["accounts"].as_array().unwrap() {
@@ -240,12 +233,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    SANDBOX_PUBLIC_TOKEN_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    env::SANDBOX_PUBLIC_TOKEN_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
+                simple_tls_client(env::SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_sandbox_public_token_encrypted_secret" => {
                 let encrypted_secret: Vec<u8> = query_param["encrypted_secret"].as_array().unwrap().iter().map(
@@ -274,12 +267,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    SANDBOX_PUBLIC_TOKEN_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    env::SANDBOX_PUBLIC_TOKEN_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
+                simple_tls_client(env::SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_sandbox_exchange_access_token" => {
                 let encoded_json = json!({
@@ -295,12 +288,12 @@ impl DataConnector for PlaidConnector {
                     Content-Type: application/json\r\n\
                     Content-Length: {}\r\n\r\n\
                     {}",
-                    SANDBOX_EXCHANGE_ACCESS_TOKEN_SUFFIX,
-                    SANDBOX_PLAID_HOST,
+                    SANDBOX_env::EXCHANGE_ACCESS_TOKEN_SUFFIX,
+                    env::SANDBOX_PLAID_HOST,
                     encoded_json.len(),
                     encoded_json
                 );
-                simple_tls_client(SANDBOX_PLAID_HOST, &req, 443)
+                simple_tls_client(env::SANDBOX_PLAID_HOST, &req, 443)
             },
             "plaid_get_rsa_public_key" => {
                 let pub_key = Arc::clone(&*RSA_PRIVATE_KEY).to_public_key();

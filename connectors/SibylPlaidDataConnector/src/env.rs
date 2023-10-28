@@ -1,4 +1,5 @@
 pub const SIGN_CLAIM_SGX_HOST: &'static str = "clique-sign-claim";
+pub const SIGN_CLAIM_SGX_PORT: int32 = 12341;
 
 // Plaid API
 pub const BALANCE_SUFFIX: &'static str = "/accounts/balance/get";
